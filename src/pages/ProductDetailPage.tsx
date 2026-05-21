@@ -32,7 +32,7 @@ export default function ProductDetailPage() {
             <h1 className="mt-3 text-4xl font-semibold text-slate-950">{product.name}</h1>
             <p className="mt-3 text-sm leading-7 text-slate-600">{product.application}</p>
           </div>
-          <div className="flex flex-col gap-3 rounded-3xl bg-slate-50 p-5 text-sm text-slate-700">
+          <div className="flex flex-col gap-3 rounded-3xl bg-slate-50 p-5 text-sm text-slate-700 shrink-0">
             <span className="font-semibold text-slate-900">Brand</span>
             <span>{product.brand}</span>
           </div>
