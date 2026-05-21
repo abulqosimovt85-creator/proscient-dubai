@@ -69,11 +69,11 @@ export default function HomePage() {
             </div>
           </div>
           <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-            <Link to="/contact">
-              <Button variant="primary">Request service quote</Button>
+            <Link to="/contact" className="w-full sm:w-auto">
+              <Button variant="primary" className="w-full">Request service quote</Button>
             </Link>
-            <Link to="/services">
-              <Button variant="secondary">View services</Button>
+            <Link to="/services" className="w-full sm:w-auto">
+              <Button variant="secondary" className="w-full">View services</Button>
             </Link>
           </div>
         </div>
@@ -109,12 +109,12 @@ export default function HomePage() {
               <p className="text-sm uppercase tracking-[0.35em] text-teal-200">Ready to transform</p>
               <h2 className="mt-4 text-3xl font-semibold tracking-[-0.03em]">Book a consultation and bring your next lab project to life.</h2>
             </div>
-            <div className="flex flex-wrap gap-4">
-              <Link to="/contact">
-                <Button variant="primary">Get quote</Button>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Link to="/contact" className="w-full sm:w-auto">
+                <Button variant="primary" className="w-full">Get quote</Button>
               </Link>
-              <Link to="/contact">
-                <Button variant="secondary">Contact sales</Button>
+              <Link to="/contact" className="w-full sm:w-auto">
+                <Button variant="secondary" className="w-full">Contact sales</Button>
               </Link>
             </div>
           </div>

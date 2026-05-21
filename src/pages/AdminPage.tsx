@@ -464,7 +464,7 @@ export default function AdminPage() {
         )}
 
         {/* Tab Controls */}
-        <div className="flex border-b border-slate-800">
+        <div className="flex border-b border-slate-800 overflow-x-auto no-scrollbar scrollbar-hide">
           <button
             onClick={() => setActiveTab('inquiries')}
             className={`px-6 py-3.5 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 ${

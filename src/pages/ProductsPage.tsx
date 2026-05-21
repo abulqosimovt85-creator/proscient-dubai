@@ -20,7 +20,7 @@ export default function ProductsPage() {
 
   return (
     <section className="mx-auto max-w-7xl px-6 py-16 sm:px-8 lg:px-12">
-      <div className="grid gap-8 lg:grid-cols-[0.7fr_1.3fr]">
+      <div className="grid gap-8 lg:grid-cols-[0.6fr_1.4fr]">
         <div className="space-y-6 rounded-[2rem] border border-slate-200 bg-white p-10 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
           <SectionHeading
             eyebrow="Products"
@@ -83,7 +83,7 @@ export default function ProductsPage() {
                       <h3 className="mt-3 text-2xl font-semibold text-slate-950">{product.name}</h3>
                       <p className="mt-3 text-sm leading-7 text-slate-600">{product.description}</p>
                     </div>
-                    <span className="rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-700">{product.brand}</span>
+                    <span className="rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-700 shrink-0">{product.brand}</span>
                   </div>
                   <div className="mt-5 flex flex-wrap gap-3 text-sm text-slate-600">
                     <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2">{product.application}</span>

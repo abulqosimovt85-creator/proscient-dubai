@@ -46,7 +46,7 @@ export default function Navbar() {
         </NavLink>
 
         {/* Desktop Navigation */}
-        <nav className="hidden items-center gap-6 lg:flex">
+        <nav className="hidden items-center gap-4 xl:gap-6 xl:flex">
           {navigation.filter(item => item.path !== '/admin').map(item => (
             <NavLink
               key={item.path}
@@ -74,7 +74,7 @@ export default function Navbar() {
         </nav>
 
         {/* Desktop Settings & Call to Action */}
-        <div className="hidden items-center gap-4 lg:flex">
+        <div className="hidden items-center gap-3 xl:gap-4 xl:flex">
           {/* Region selector */}
           <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 text-xs text-slate-700 shadow-sm">
             {regions.map(item => (
@@ -125,7 +125,7 @@ export default function Navbar() {
         {/* Mobile Hamburger Menu Toggle */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-all lg:hidden hover:bg-slate-50 active:scale-90"
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-all xl:hidden hover:bg-slate-50 active:scale-90"
           aria-label="Toggle menu"
           type="button"
         >
@@ -157,7 +157,7 @@ export default function Navbar() {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.25, ease: 'easeInOut' }}
-            className="overflow-hidden border-b border-slate-200 bg-white/95 backdrop-blur-xl lg:hidden shadow-lg"
+            className="overflow-hidden border-b border-slate-200 bg-white/95 backdrop-blur-xl xl:hidden shadow-lg"
           >
             <div className="flex flex-col gap-5 px-6 py-6 border-t border-slate-100">
               <nav className="flex flex-col gap-4">
