@@ -28,7 +28,7 @@ export class UploadController {
     const ftpHost = process.env.BEGET_FTP_HOST;
     const ftpUser = process.env.BEGET_FTP_USER;
     const ftpPass = process.env.BEGET_FTP_PASS;
-    const ftpDir = (process.env.BEGET_FTP_UPLOAD_DIR || '/public_html/uploads')
+    const ftpDir = (process.env.BEGET_FTP_UPLOAD_DIR || '')
       .replace(/\/+$/, '');
     const baseUrl = (process.env.BEGET_PUBLIC_BASE_URL || '').replace(
       /\/+$/,
@@ -56,14 +56,16 @@ export class UploadController {
         secure: false,
       });
 
-      // Ensure the target directory exists on Beget
-      await client.ensureDir(ftpDir);
+      // Ensure the target directory exists on Beget (skip if ftpDir is empty = use FTP home)
+      if (ftpDir) {
+        await client.ensureDir(ftpDir);
+      }
 
-      // Upload file buffer as a readable stream (use filename only, since ensureDir already set the working directory)
+      // Upload file buffer as a readable stream
       const stream = Readable.from(file.buffer);
       await client.uploadFrom(stream, uniqueName);
 
-      this.logger.log(`Uploaded ${uniqueName} → ${ftpDir}/${uniqueName}`);
+      this.logger.log(`Uploaded ${uniqueName} → ${ftpDir ? ftpDir + '/' : ''}${uniqueName}`);
     } catch (err) {
       this.logger.error('FTP upload failed', err);
       throw new InternalServerErrorException(
