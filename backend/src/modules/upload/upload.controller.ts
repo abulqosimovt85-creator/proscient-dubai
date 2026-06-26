@@ -6,13 +6,16 @@ import {
   BadRequestException,
   InternalServerErrorException,
   Logger,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import * as ftp from 'basic-ftp';
 import { Readable } from 'stream';
 import * as path from 'path';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('upload')
+@UseGuards(JwtAuthGuard)
 export class UploadController {
   private readonly logger = new Logger(UploadController.name);
 
@@ -41,11 +44,10 @@ export class UploadController {
       );
     }
 
-    // Generate a unique filename preserving the original extension
     const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
     const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}${ext}`;
 
-    const client = new ftp.Client(30_000); // 30s timeout
+    const client = new ftp.Client(30_000);
     client.ftp.verbose = false;
 
     try {
@@ -56,12 +58,10 @@ export class UploadController {
         secure: false,
       });
 
-      // Ensure the target directory exists on Beget (skip if ftpDir is empty = use FTP home)
       if (ftpDir) {
         await client.ensureDir(ftpDir);
       }
 
-      // Upload file buffer as a readable stream
       const stream = Readable.from(file.buffer);
       await client.uploadFrom(stream, uniqueName);
 
