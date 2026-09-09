@@ -16,6 +16,12 @@ export interface ExtractedProduct {
 @Injectable()
 export class AiService {
   private apiKey: string;
+  // Failover chain: primary first, then fallbacks. Override primary via AI_MODEL env.
+  private readonly models: string[] = [
+    process.env.AI_MODEL || 'google/gemma-4-26b-a4b-it:free',
+    'meta-llama/llama-3.3-70b-instruct:free',
+    'openrouter/free',
+  ];
 
   constructor() {
     this.apiKey = process.env.OPENROUTER_API_KEY ?? '';
@@ -143,8 +149,10 @@ export class AiService {
     prompt: string,
     maxTokens: number,
   ): Promise<string> {
-    const maxRetries = 3;
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    let lastRateLimit: any = null;
+
+    for (const model of this.models) {
       try {
         const response = await fetch(
           'https://openrouter.ai/api/v1/chat/completions',
@@ -157,7 +165,7 @@ export class AiService {
               'X-OpenRouter-Title': 'Proscient Product Catalog',
             },
             body: JSON.stringify({
-              model: 'google/gemma-4-26b-a4b-it:free',
+              model,
               messages: [{ role: 'user', content: prompt }],
               max_tokens: maxTokens,
               temperature: 0.2,
@@ -165,49 +173,54 @@ export class AiService {
           },
         );
 
-        if (!response.ok) {
-          const body = await response.text();
-          if (response.status === 429 && attempt < maxRetries) {
-            await new Promise((r) =>
-              setTimeout(r, 2000 * Math.pow(2, attempt)),
-            );
-            continue;
-          }
-          if (response.status === 429) {
-            throw new ServiceUnavailableException(
-              'OpenRouter API is rate limiting. Please try again in a minute.',
-            );
-          }
-          if (response.status === 402) {
-            throw new ServiceUnavailableException(
-              `OpenRouter billing (402): ${body.substring(0, 300)} — check balance at https://openrouter.ai/settings/credits and key limits at https://openrouter.ai/settings/keys`,
-            );
-          }
-          throw new InternalServerErrorException(
-            `OpenRouter API error (${response.status}): ${body.substring(0, 300)}`,
-          );
-        }
-
-        const data = (await response.json()) as any;
-        const content = data?.choices?.[0]?.message?.content ?? '';
-        return content;
-      } catch (err) {
-        if (err instanceof InternalServerErrorException || err instanceof ServiceUnavailableException) {
-          throw err;
-        }
-        const msg = (err as Error).message || '';
-        if (msg.includes('429') && attempt < maxRetries) {
-          await new Promise((r) =>
-            setTimeout(r, 2000 * Math.pow(2, attempt)),
-          );
+        if (response.ok) {
+          const data = (await response.json()) as any;
+          const content = data?.choices?.[0]?.message?.content ?? '';
+          if (content && content.trim()) return content;
+          // Empty response — try next model
           continue;
         }
-        throw new InternalServerErrorException(
-          `OpenRouter API error: ${msg}`,
+
+        const body = await response.text();
+        if (response.status === 402) {
+          // Account-level billing issue: failover won't help, fail fast
+          throw new ServiceUnavailableException(
+            `OpenRouter billing (402): ${body.substring(0, 300)} — check balance at https://openrouter.ai/settings/credits and key limits at https://openrouter.ai/settings/keys`,
+          );
+        }
+        if (response.status === 400 || response.status === 401) {
+          // Config error (bad model id / bad key): fail fast
+          throw new InternalServerErrorException(
+            `OpenRouter API error (${response.status}) on ${model}: ${body.substring(0, 300)}`,
+          );
+        }
+        // 429 / 5xx: record and fail over to next model (one short wait first)
+        lastRateLimit = new ServiceUnavailableException(
+          `OpenRouter limited (${response.status}) on ${model}: ${body.substring(0, 200)}`,
+        );
+        console.warn(`[AI] ${model} busy (${response.status}), trying fallback...`);
+        await sleep(1500);
+      } catch (err) {
+        if (
+          err instanceof InternalServerErrorException ||
+          err instanceof ServiceUnavailableException
+        ) {
+          throw err; // billing/config errors fail fast, no fallback
+        }
+        // Network-level error: try next model
+        console.warn(`[AI] ${model} network error: ${(err as Error).message}, trying fallback...`);
+        lastRateLimit = new InternalServerErrorException(
+          `OpenRouter API error on ${model}: ${(err as Error).message}`,
         );
       }
     }
-    return '';
+
+    throw (
+      lastRateLimit ??
+      new ServiceUnavailableException(
+        'OpenRouter API is rate limiting on all models. Please try again in a minute.',
+      )
+    );
   }
 
   async extractProduct(input: string): Promise<Partial<Product>> {
