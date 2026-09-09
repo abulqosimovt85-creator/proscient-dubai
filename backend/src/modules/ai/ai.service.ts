@@ -16,12 +16,16 @@ export interface ExtractedProduct {
 @Injectable()
 export class AiService {
   private apiKey: string;
-  // Failover chain: primary first, then fallbacks. Override primary via AI_MODEL env.
-  private readonly models: string[] = [
-    process.env.AI_MODEL || 'google/gemma-4-26b-a4b-it:free',
-    'meta-llama/llama-3.3-70b-instruct:free',
-    'openrouter/free',
-  ];
+  // Failover chain: primary first, then fallbacks.
+  // Override primary via AI_MODEL, or whole chain via AI_MODELS (comma-separated).
+  private readonly models: string[] = process.env.AI_MODELS
+    ? process.env.AI_MODELS.split(',').map((m) => m.trim()).filter(Boolean)
+    : [
+        process.env.AI_MODEL || 'google/gemma-4-26b-a4b-it:free',
+        'google/gemma-4-31b-it:free',
+        'nvidia/nemotron-3-super-120b-a12b:free',
+        'openrouter/free',
+      ];
 
   constructor() {
     this.apiKey = process.env.OPENROUTER_API_KEY ?? '';
@@ -194,11 +198,13 @@ export class AiService {
             `OpenRouter API error (${response.status}) on ${model}: ${body.substring(0, 300)}`,
           );
         }
-        // 429 / 5xx: record and fail over to next model (one short wait first)
+        // 404 / 429 / 5xx: record and fail over to next model (one short wait first)
         lastRateLimit = new ServiceUnavailableException(
           `OpenRouter limited (${response.status}) on ${model}: ${body.substring(0, 200)}`,
         );
-        console.warn(`[AI] ${model} busy (${response.status}), trying fallback...`);
+        console.warn(
+          `[AI] ${model} unavailable (${response.status}): ${body.substring(0, 160)} — trying fallback...`,
+        );
         await sleep(1500);
       } catch (err) {
         if (
