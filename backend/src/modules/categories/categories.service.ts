@@ -40,12 +40,27 @@ export class CategoriesService {
       return this.categoryRepo.save(existing);
     }
 
-    const category = this.categoryRepo.create({
-      id: finalId,
-      name,
-      parentId: parentId || null,
-    });
-    return this.categoryRepo.save(category);
+    try {
+      const category = this.categoryRepo.create({
+        id: finalId,
+        name,
+        parentId: parentId || null,
+      });
+      return await this.categoryRepo.save(category);
+    } catch (err: any) {
+      // Same race-condition guard as BrandsService (Postgres 23505)
+      if (err?.code === '23505' || err?.driverError?.code === '23505') {
+        const raced = await this.categoryRepo.findOne({
+          where: { id: finalId },
+        });
+        if (raced) {
+          raced.name = name;
+          raced.parentId = parentId || null;
+          return this.categoryRepo.save(raced);
+        }
+      }
+      throw err;
+    }
   }
 
   async update(id: string, name: string): Promise<Category> {

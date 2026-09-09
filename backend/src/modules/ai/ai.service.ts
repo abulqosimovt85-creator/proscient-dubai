@@ -157,10 +157,10 @@ export class AiService {
               'X-OpenRouter-Title': 'Proscient Product Catalog',
             },
             body: JSON.stringify({
-              model: 'google/gemini-2.5-flash',
+              model: 'google/gemma-4-26b-a4b-it:free',
               messages: [{ role: 'user', content: prompt }],
               max_tokens: maxTokens,
-              temperature: 0,
+              temperature: 0.2,
             }),
           },
         );
@@ -220,60 +220,42 @@ export class AiService {
         'NOTE: The text below was extracted from a web page. Extract ONLY what is explicitly written here.';
     }
 
-    const prompt = `TASK: Extract product data from the text below into JSON. This is for a professional scientific/industrial equipment catalog.
+    const prompt = `TASK: Extract MAXIMUM product data from the text below into JSON. This is for a professional scientific equipment catalog. The source is often a marketing brochure WITHOUT a spec table — you must convert prose/features/performance data into structured specifications.
 
-CRITICAL RULES — READ CAREFULLY:
-1. ONLY extract text that APPEARS IN THE SOURCE. Do NOT invent, guess, or use your training knowledge.
-2. Look for specification tables — they often have rows like "Parameter name [TAB/COLON] Value" or "| Parameter | Value |". Extract ALL of these as specifications.
-3. If you cannot find a specific piece of information in the source text, DO NOT include it. An empty specifications array is better than fake data.
-4. NEVER output specifications like "USB", "RS-232", "CE", "ISO 9001" unless those exact strings appear in the source text. These are common hallucinations — do NOT add them.
+GOAL: Return 12-20 specifications minimum if the source is rich. Never return <5 specs for a long brochure. Empty specs are a FAILURE.
 
-SOURCE TEXT ANALYSIS — Look for these patterns in the text:
-- Table rows with labels and values (e.g., "Electron gun [TAB] Cold field emission gun")
-- Lines with "key: value" or "key [TAB] value" format
-- Numbered or bulleted specification lists
-- Sections titled "Specifications", "Technical Data", "Features", etc.
+CRITICAL RULES:
+1. Ground EVERYTHING in the source. Do NOT invent model numbers, but you MAY rephrase prose into "key: value" specs (e.g. prose "Octopole-style Collision Reaction Cell with helium for KED" → {"key":"Collision Reaction Cell","value":"Octopole-style, Helium gas, Kinetic Energy Discrimination (KED)"}).
+2. If source has a spec table, extract EVERY row. If it has NO table, synthesize specs from: instrument type, analyzer, ion source, lenses/optics, cells, chambers, detector, plasma, sample introduction, performance numbers (LOD, R2, sensitivity), software features, applications.
+3. NEVER output generic filler like "USB / RS-232", "CE / ISO 9001", "Operating range 0-100%" unless those exact strings appear. Instead use REAL facts from source.
+4. Copy numbers/units exactly (ppb, cps, m/z, He sccm, etc.).
 
 Return ONLY a valid JSON object:
 {
-  "name": "Product model name/number ONLY (no manufacturer name)",
-  "description": "3-5 sentences describing the product using ONLY facts from the source",
+  "name": "Full model name e.g. 'ACE 3000 ICP-MS'",
+  "brand": "Manufacturer e.g. 'Young In ACE' (prefer manufacturer over distributor; if only distributor found use it)",
+  "category": "Best fit: 'Mass Spectrometry' for ICP-MS/LC-MS/GC-MS, 'Chromatography' for HPLC/GC, 'Spectroscopy' for AAS/ICP-OES/UV, else 'Lab Equipment'",
+  "description": "3-5 sentences, what it IS + key tech + capabilities, ONLY from source",
   "specifications": [
-    { "key": "Exact parameter name from source", "value": "Exact value from source" }
+    { "key": "Parameter name", "value": "Value from source" }
   ],
-  "application": "Intended applications ONLY if explicitly stated in source",
+  "application": "Comma-separated applications explicitly stated or clearly implied (e.g. Semiconductor, Environmental, Food, Pharmaceuticals, Cosmetics, Petrochemicals, Life Sciences, Nanoparticle analysis)",
   "isFeatured": false
 }
 
-SPECIFICATION EXTRACTION RULES:
-- Extract EVERY row from specification tables found in the source
-- Use the EXACT parameter name from the source as the "key" (e.g., "Electron gun", "Accelerating voltage", "Specimen cooling temperature")
-- Use the EXACT value from the source as the "value" (e.g., "Cold field emission gun", "300 kV, 200 kV", "100 K or less")
-- If a parameter has sub-parameters (indented under it), include BOTH the parent and child as separate specs
-- If there are multiple variants/modes listed, create a separate spec for each
-- Copy units exactly (kV, K, mm, °, etc.) — do NOT convert or normalize
-- Do NOT add any specification that is not explicitly written in the source
-
-PRODUCT NAME RULES:
-- Use ONLY the model name/number from the source (e.g., "CRYO ARM 300 II", "JEM-3300")
-- Do NOT include the manufacturer in the name
-- The manufacturer goes as the first specification row with key "Manufacturer"
+HOW TO BUILD SPECIFICATIONS (aim 12-20):
+- ALWAYS first 3 rows: Manufacturer, Model, Instrument Type (e.g. "Inductively Coupled Plasma Mass Spectrometer").
+- Then one spec per subsystem mentioned: Mass Analyzer / Quadrupole Mass Filter, Collision Reaction Cell, Interface Chamber, Plasma Source, Sample Introduction System, Analyzer Chamber, Detector, Ion Lenses, Vacuum/Optics.
+- Then performance specs: Detection Limits / LOD, Linearity / R2, Sensitivity, Dynamic Range, Matrix Tolerance, Interference Removal.
+- Then application/method specs: Target Elements/Isotopes (e.g. 56Fe with 40Ar16O removal, 115In, 6Li, 175Lu), Sample Types.
+- Example good specs for ACE 3000: {"key":"Collision Reaction Cell","value":"Octopole-style, Helium collision gas, KED, higher collision frequency than quadrupole/hexapole"}, {"key":"Mass Analyzer","value":"Custom Quadrupole Mass Filter, in-house RF/DC control, high straightness/parallelism"}, {"key":"Interface Chamber","value":"Patented, ion lenses tailored to matrix, removes metastable atoms/photons/argon"}, {"key":"Plasma Source","value":"Hyper Stable argon plasma; expertise in ICP, Microwave Induced Plasma, Dielectric Barrier Discharge"}, {"key":"LOD","value":"0.001 ppb for 115In, 6Li, 175Lu (10 replicates, blank)"}, etc.
+- If a value is long prose, condense to <25 words but keep all technical nouns.
 
 DESCRIPTION RULES:
-- Write 3-5 professional sentences
-- Start with what the product IS
-- Include its main function and key capabilities as described in source
-- Only include applications/use cases that are explicitly mentioned
-- Do NOT add generic marketing language
+- Start with full model + type. Include 3-4 key technologies + what it solves (e.g. polyatomic interferences from argon/solvents).
+- No generic filler ("premium, high-precision for clinical labs") unless source says clinical.
 
-WHAT NOT TO DO:
-- Do NOT output "USB / RS-232 serial" unless the source literally says that
-- Do NOT output "CE / ISO 9001" unless the source literally says that
-- Do NOT output generic specs like "Operating range: 0-100%" for a scientific instrument
-- Do NOT guess interfaces, certifications, or standards
-- Do NOT add any information that requires inference or general knowledge
-
-Return ONLY the JSON object. No markdown fences, no explanation, no thinking.
+Return ONLY the JSON object. No markdown fences, no explanation.
 
 ${sourceNote ? `${sourceNote}\n\n` : ''}SOURCE TEXT:
 ---
@@ -288,10 +270,16 @@ ${sourceText.substring(0, 25000)}
       );
     }
 
-    const cleaned = rawText
+    // Robust JSON extraction: strip fences, find first {...} block
+    let cleaned = rawText.trim()
       .replace(/^```(?:json)?\s*/i, '')
-      .replace(/\s*```$/i, '')
+      .replace(/\s*```\s*$/i, '')
       .trim();
+    const jsonStart = cleaned.indexOf('{');
+    const jsonEnd = cleaned.lastIndexOf('}');
+    if (jsonStart >= 0 && jsonEnd > jsonStart) {
+      cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+    }
 
     let parsed: any;
     try {
@@ -306,19 +294,23 @@ ${sourceText.substring(0, 25000)}
     if (Array.isArray(parsed.specifications)) {
       parsed.specifications.forEach((s: any) => {
         if (s && typeof s.key === 'string' && typeof s.value === 'string') {
-          specs[s.key] = s.value;
+          const k = s.key.trim();
+          const v = s.value.trim();
+          if (k && v) specs[k] = v;
         }
       });
     }
 
     return {
       name: String(parsed.name ?? 'Generated Product').trim(),
+      brand: parsed.brand ? String(parsed.brand).trim() : undefined,
+      category: parsed.category ? String(parsed.category).trim() : undefined,
       description: String(parsed.description ?? '').trim(),
       specs: specs,
       application: String(
         parsed.application ??
           'Scientific laboratory research as specified in extracted documentation.',
       ).trim(),
-    };
+    } as Partial<Product>;
   }
 }

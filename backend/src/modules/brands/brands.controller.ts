@@ -33,7 +33,7 @@ export class BrandsController {
   create(
     @Body() body: { id?: string; name: string; logo?: string },
   ): Promise<Brand> {
-    const slug = body.id || body.name.toLowerCase().replace(/\s+/g, '-');
+    const slug = (body.id || body.name).trim().toLowerCase().replace(/\s+/g, '-');
     return this.brandsService.create(slug, body.name, body.logo || body.name);
   }
 

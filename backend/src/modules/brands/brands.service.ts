@@ -30,12 +30,26 @@ export class BrandsService {
       existing.logo = logo || name;
       return this.brandRepo.save(existing);
     }
-    const brand = this.brandRepo.create({
-      id: finalId,
-      name,
-      logo: logo || name,
-    });
-    return this.brandRepo.save(brand);
+    try {
+      const brand = this.brandRepo.create({
+        id: finalId,
+        name,
+        logo: logo || name,
+      });
+      return await this.brandRepo.save(brand);
+    } catch (err: any) {
+      // Race condition: two concurrent inserts with same id.
+      // Postgres unique violation code = 23505. Return existing instead of 500.
+      if (err?.code === '23505' || err?.driverError?.code === '23505') {
+        const raced = await this.brandRepo.findOne({ where: { id: finalId } });
+        if (raced) {
+          raced.name = name;
+          raced.logo = logo || name;
+          return this.brandRepo.save(raced);
+        }
+      }
+      throw err;
+    }
   }
 
   async update(id: string, name: string, logo: string): Promise<Brand> {
