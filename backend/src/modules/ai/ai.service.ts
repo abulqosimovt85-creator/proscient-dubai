@@ -180,7 +180,7 @@ export class AiService {
           }
           if (response.status === 402) {
             throw new ServiceUnavailableException(
-              'OpenRouter API credits exhausted. Please add credits at https://openrouter.ai/settings/credits',
+              `OpenRouter billing (402): ${body.substring(0, 300)} — check balance at https://openrouter.ai/settings/credits and key limits at https://openrouter.ai/settings/keys`,
             );
           }
           throw new InternalServerErrorException(
